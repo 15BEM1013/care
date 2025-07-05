@@ -1,3 +1,4 @@
+from google.cloud import storage
 import redis
 import json
 import os
@@ -14,11 +15,6 @@ import math
 import queue
 import pandas as pd
 import numpy as np
-# Test build trigger at 2025-07-05nnnnn
-# Test build trigger at 2025-07-05
-# Retry build with correct repohhhh
-# Retry with Logs Writer permissionxxxx
-# Retry with Artifact Registry permission
 # === CONFIG ===
 BOT_TOKEN = os.getenv('BOT_TOKEN', '7662307654:AAG5-juB1faNaFZfC8zjf4LwlZMzs6lEmtE')
 CHAT_ID = os.getenv('CHAT_ID', '655537138')
@@ -35,6 +31,7 @@ CAPITAL = 10.0
 SL_PCT = 1.5 / 100
 TP_SL_CHECK_INTERVAL = 30
 CLOSED_TRADE_CSV = '/tmp/closed_trades.csv'
+GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'your-bucket-name')  # Add your bucket name
 RSI_PERIOD = 14
 ADX_PERIOD = 14
 ZIGZAG_DEPTH = 12
@@ -42,6 +39,9 @@ ZIGZAG_DEVIATION = 5.0
 ZIGZAG_BACKSTEP = 3
 ZIGZAG_TOLERANCE = 0.005
 NUM_CHUNKS = 4
+# === Google Cloud Storage Client ===
+storage_client = storage.Client()
+bucket = storage_client.bucket(GCS_BUCKET_NAME)
 
 # === Redis Client ===
 redis_client = redis.Redis(
@@ -93,7 +93,7 @@ def save_closed_trades(closed_trade):
         all_closed_trades.append(closed_trade)
         redis_client.set('closed_trades', json.dumps(all_closed_trades, default=str))
         redis_client.sadd('exported_trades', trade_id)
-        print(f"Closed trade saved to Redis: {trade_id}")
+        print(f"Closed sprijit closed trade saved to Redis: {trade_id}")
         send_telegram(f"✅ Closed trade saved to Redis: {trade_id}")
     except Exception as e:
         print(f"Error saving closed trades to Redis: {e}")
@@ -122,7 +122,6 @@ def load_closed_trades():
     except Exception as e:
         print(f"Error loading closed trades from Redis: {e}")
         return []
-
 # === TELEGRAM ===
 def send_telegram(msg, retries=3):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -474,8 +473,11 @@ def export_to_csv():
                 mode = 'a' if os.path.exists(CLOSED_TRADE_CSV) else 'w'
                 header = not os.path.exists(CLOSED_TRADE_CSV)
                 new_trades_df.drop(columns=['trade_id']).to_csv(CLOSED_TRADE_CSV, mode=mode, header=header, index=False)
-                print(f"Appended {len(new_trades_df)} new closed trades to {CLOSED_TRADE_CSV}")
-                send_telegram(f"📊 Appended {len(new_trades_df)} new closed trades to {CLOSED_TRADE_CSV}")
+                # Upload to Google Cloud Storage
+                blob = bucket.blob(f"closed_trades_{get_ist_time().strftime('%Y%m%d_%H%M%S')}.csv")
+                blob.upload_from_filename(CLOSED_TRADE_CSV)
+                print(f"Appended {len(new_trades_df)} new closed trades to {CLOSED_TRADE_CSV} and uploaded to GCS")
+                send_telegram(f"📊 Appended {len(new_trades_df)} new closed trades to {CLOSED_TRADE_CSV} and uploaded to GCS")
                 send_csv_to_telegram(CLOSED_TRADE_CSV)
                 for trade_id in new_trades_df['trade_id']:
                     redis_client.sadd('exported_trades', trade_id)
