@@ -4,7 +4,13 @@ FROM python:3.10-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    TZ=Asia/Kolkata
+    TZ=Asia/Kolkata \
+    PORT=8081
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /app
@@ -13,11 +19,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your entire project files into the container
+# Copy the entire project
 COPY . .
 
-# Expose the port your Flask app runs on
+# Expose the port the Flask app runs on
 EXPOSE 8081
 
-# Start the bot (main.py includes both bot and Flask)
-CMD ["python", "main.py"]
+# Start the application
+CMD ["gunicorn", "--bind", "0.0.0.0:8081", "--workers", "2", "--timeout", "120", "main:app"]
