@@ -1,4 +1,3 @@
-from google.cloud import storage
 import redis
 import json
 import os
@@ -15,6 +14,8 @@ import math
 import queue
 import pandas as pd
 import numpy as np
+from google.cloud import storage
+
 # === CONFIG ===
 BOT_TOKEN = os.getenv('BOT_TOKEN', '7662307654:AAG5-juB1faNaFZfC8zjf4LwlZMzs6lEmtE')
 CHAT_ID = os.getenv('CHAT_ID', '655537138')
@@ -39,9 +40,6 @@ ZIGZAG_DEVIATION = 5.0
 ZIGZAG_BACKSTEP = 3
 ZIGZAG_TOLERANCE = 0.005
 NUM_CHUNKS = 4
-# === Google Cloud Storage Client ===
-storage_client = storage.Client()
-bucket = storage_client.bucket(GCS_BUCKET_NAME)
 
 # === Redis Client ===
 redis_client = redis.Redis(
@@ -51,6 +49,10 @@ redis_client = redis.Redis(
     decode_responses=True,
     ssl=True
 )
+
+# === Google Cloud Storage Client ===
+storage_client = storage.Client()
+bucket = storage_client.bucket(GCS_BUCKET_NAME)
 
 # === TIME ZONE HELPER ===
 def get_ist_time():
@@ -93,7 +95,7 @@ def save_closed_trades(closed_trade):
         all_closed_trades.append(closed_trade)
         redis_client.set('closed_trades', json.dumps(all_closed_trades, default=str))
         redis_client.sadd('exported_trades', trade_id)
-        print(f"Closed sprijit closed trade saved to Redis: {trade_id}")
+        print(f"Closed trade saved to Redis: {trade_id}")
         send_telegram(f"✅ Closed trade saved to Redis: {trade_id}")
     except Exception as e:
         print(f"Error saving closed trades to Redis: {e}")
@@ -122,6 +124,7 @@ def load_closed_trades():
     except Exception as e:
         print(f"Error loading closed trades from Redis: {e}")
         return []
+
 # === TELEGRAM ===
 def send_telegram(msg, retries=3):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -162,7 +165,7 @@ def send_csv_to_telegram(filename):
             send_telegram(f"❌ File {filename} does not exist")
             return
         with open(filename, 'rb') as f:
-            data = {'chat_id': CHAT_ID, 'caption': f"CSV: {filename}"}
+            data = {'chat нашого_id': CHAT_ID, 'caption': f"CSV: {filename}"}
             files = {'document': f}
             response = requests.post(url, data=data, files=files, timeout=10).json()
             if response.get('ok'):
@@ -418,7 +421,7 @@ def check_tp_sl():
                             'zigzag_status': trade['zigzag_status'],
                             'zigzag_price': trade['zigzag_price'],
                             'signal_time': trade['signal_time'],
-                            'signal_weekday': trade['signal_weekday'],  # Add signal weekday
+                            'signal_weekday': trade['signal_weekday'],
                             'close_time': get_ist_time().strftime('%Y-%m-%d %H:%M:%S')
                         }
                         trade_id = f"{closed_trade['symbol']}:{closed_trade['close_time']}:{closed_trade['entry']}:{closed_trade['pnl']}"
@@ -428,7 +431,7 @@ def check_tp_sl():
                             ema_status = trade['ema_status']
                             new_msg = (
                                 f"{sym} - {'RISING' if trade['side'] == 'buy' else 'FALLING'} PATTERN\n"
-                                f"Signal Time: {trade['signal_time']} ({trade['signal_weekday']})\n"  # Add weekday
+                                f"Signal Time: {trade['signal_time']} ({trade['signal_weekday']})\n"
                                 f"{'Above' if trade['side'] == 'buy' else 'Below'} 21 ema - {ema_status['price_ema21']}\n"
                                 f"ema 9 {'above' if trade['side'] == 'buy' else 'below'} 21 - {ema_status['ema9_ema21']}\n"
                                 f"RSI (14) - {trade['rsi']:.2f} ({trade['rsi_category']})\n"
@@ -472,7 +475,7 @@ def export_to_csv():
             if not new_trades_df.empty:
                 mode = 'a' if os.path.exists(CLOSED_TRADE_CSV) else 'w'
                 header = not os.path.exists(CLOSED_TRADE_CSV)
-                new_trades_df.drop(columns=['trade_id']).to_csv(CLOSED_TRADE_CSV, mode=mode, header=header, index=False)
+                new_trades_df.drop(columns=['trade_id']).to_csv(CLOSED_TRADE_CSV, mode=mode, header=header, index= False)
                 # Upload to Google Cloud Storage
                 blob = bucket.blob(f"closed_trades_{get_ist_time().strftime('%Y%m%d_%H%M%S')}.csv")
                 blob.upload_from_filename(CLOSED_TRADE_CSV)
@@ -511,7 +514,7 @@ def process_symbol(symbol, alert_queue):
 
         signal_time = candles[-2][0]
         signal_entry_time = get_ist_time().strftime('%Y-%m-%d %H:%M:%S')
-        signal_weekday = get_ist_time().strftime('%A')  # Capture weekday
+        signal_weekday = get_ist_time().strftime('%A')
         if (symbol, 'rising') in sent_signals and sent_signals[(symbol, 'rising')] == signal_time:
             return
         if (symbol, 'falling') in sent_signals and sent_signals[(symbol, 'falling')] == signal_time:
@@ -609,12 +612,12 @@ def process_symbol(symbol, alert_queue):
             'zigzag_status': zigzag_status,
             'zigzag_price': zigzag_price,
             'signal_time': signal_entry_time,
-            'signal_weekday': signal_weekday  # Add signal weekday
+            'signal_weekday': signal_weekday
         }
 
         msg = (
             f"{symbol} - {'RISING' if rising else 'FALLING'} PATTERN\n"
-            f"Signal Time: {signal_entry_time} ({signal_weekday})\n"  # Add weekday
+            f"Signal Time: {signal_entry_time} ({signal_weekday})\n"
             f"{'Above' if rising else 'Below'} 21 ema - {ema_status['price_ema21']}\n"
             f"ema 9 {'above' if rising else 'below'} 21 - {ema_status['ema9_ema21']}\n"
             f"RSI (14) - {rsi:.2f} ({rsi_category})\n"
