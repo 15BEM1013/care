@@ -6,4 +6,4 @@ pandas
 numpy
 redis
 gunicorn
-
+google-cloud-storage
