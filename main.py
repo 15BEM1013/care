@@ -147,7 +147,7 @@ def send_telegram(msg, retries=3):
             logger.error(f"Telegram error (attempt {attempt+1}/{retries}): {e}")
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
-    send_telegram(f"❌ Failed to send Telegram message after {retries} attempts: {msg[:50]}...")
+    logger.error(f"Failed to send Telegram message after {retries} attempts: {msg[:50]}...")
     return None
 
 def edit_telegram_message(message_id, new_text):
@@ -460,17 +460,16 @@ def check_tp_sl():
                             edit_telegram_message(trade['msg_id'], new_msg)
                         else:
                             logger.info(f"Trade {trade_id} already closed, skipping TP/SL")
-                    except Exception as e:
-                        logger.error(f"TP/SL check error on {sym}: {e}")
-                        send_telegram(f"❌ TP/SL check error on {sym}: {e}")
-                trades_to_remove.append(sym)
-                for sym in trades_to_remove:
-                    del open_trades[sym]
-                if trades_to_remove:
-                    save_trades()
-                    logger.info(f"Removed {len(trades_to_remove)} closed trades from open_trades")
-                    send_telegram(f"Removed {len(trades_to_remove)} closed trades from open_trades")
-                time.sleep(TP_SL_CHECK_INTERVAL)
+                    if trades_to_remove:
+                        for sym in trades_to_remove:
+                            del open_trades[sym]
+                        save_trades()
+                        logger.info(f"Removed {len(trades_to_remove)} closed trades from open_trades")
+                        send_telegram(f"Removed {len(trades_to_remove)} closed trades from open_trades")
+                except Exception as e:
+                    logger.error(f"Error checking TP/SL for {sym}: {e}")
+                    send_telegram(f"❌ Error checking TP/SL for {sym}: {e}")
+            time.sleep(TP_SL_CHECK_INTERVAL)
         except Exception as e:
             logger.error(f"TP/SL loop error at {get_ist_time().strftime('%Y-%m-%d %H:%M:%S')}: {e}")
             send_telegram(f"❌ TP/SL loop error at {get_ist_time().strftime('%Y-%m-%d %H:%M:%S')}: {e}")
