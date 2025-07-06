@@ -32,7 +32,7 @@ CAPITAL = 10.0
 SL_PCT = 1.5 / 100
 TP_SL_CHECK_INTERVAL = 30
 CLOSED_TRADE_CSV = '/tmp/closed_trades.csv'
-GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'your-bucket-name')  # Add your bucket name
+GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'caring-465016-trading-bot')
 RSI_PERIOD = 14
 ADX_PERIOD = 14
 ZIGZAG_DEPTH = 12
@@ -132,8 +132,8 @@ def send_telegram(msg, retries=3):
                 return response.get('result', {}).get('message_id')
             else:
                 print(f"Telegram API error: {response.get('description')}")
-       66            except Exception as e:
-        print(f"Telegram error (attempt {attempt+1}/{retries}): {e}")
+        except Exception as e:
+            print(f"Telegram error (attempt {attempt+1}/{retries}): {e}")
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
     send_telegram(f"❌ Failed to send Telegram message after {retries} attempts: {msg[:50]}...")
@@ -175,8 +175,6 @@ def send_csv_to_telegram(filename):
 
 # === INIT ===
 exchange = ccxt.binance({
-    'apiKey': os.getenv('BINANCE_API_KEY'),
-    'secret': os.getenv('BINANCE_API_SECRET'),
     'options': {'defaultType': 'future'},
     'enableRateLimit': True
 })
