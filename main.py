@@ -42,13 +42,8 @@ ZIGZAG_TOLERANCE = 0.005
 NUM_CHUNKS = 4
 
 # === Redis Client ===
-redis_client = redis.Redis(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    password=REDIS_PASSWORD,
-    decode_responses=True,
-    ssl=True
-)
+redis_url = "rediss://default:AdJfAAIjcDEzNDdhYTU4OGY1ZDc0ZWU3YmQzY2U0MTVkNThiNzU0OXAxMA@climbing-narwhal-53855.upstash.io:6379"
+redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
 
 # === Google Cloud Storage Client ===
 storage_client = storage.Client()
@@ -137,8 +132,8 @@ def send_telegram(msg, retries=3):
                 return response.get('result', {}).get('message_id')
             else:
                 print(f"Telegram API error: {response.get('description')}")
-        except Exception as e:
-            print(f"Telegram error (attempt {attempt+1}/{retries}): {e}")
+       66            except Exception as e:
+        print(f"Telegram error (attempt {attempt+1}/{retries}): {e}")
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
     send_telegram(f"❌ Failed to send Telegram message after {retries} attempts: {msg[:50]}...")
@@ -165,7 +160,7 @@ def send_csv_to_telegram(filename):
             send_telegram(f"❌ File {filename} does not exist")
             return
         with open(filename, 'rb') as f:
-            data = {'chat нашого_id': CHAT_ID, 'caption': f"CSV: {filename}"}
+            data = {'chat_id': CHAT_ID, 'caption': f"CSV: {filename}"}
             files = {'document': f}
             response = requests.post(url, data=data, files=files, timeout=10).json()
             if response.get('ok'):
@@ -475,7 +470,7 @@ def export_to_csv():
             if not new_trades_df.empty:
                 mode = 'a' if os.path.exists(CLOSED_TRADE_CSV) else 'w'
                 header = not os.path.exists(CLOSED_TRADE_CSV)
-                new_trades_df.drop(columns=['trade_id']).to_csv(CLOSED_TRADE_CSV, mode=mode, header=header, index= False)
+                new_trades_df.drop(columns=['trade_id']).to_csv(CLOSED_TRADE_CSV, mode=mode, header=header, index=False)
                 # Upload to Google Cloud Storage
                 blob = bucket.blob(f"closed_trades_{get_ist_time().strftime('%Y%m%d_%H%M%S')}.csv")
                 blob.upload_from_filename(CLOSED_TRADE_CSV)
