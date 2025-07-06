@@ -676,4 +676,4 @@ if __name__ == "__main__":
     test_redis()
     load_trades()
     threading.Thread(target=run_bot, daemon=True).start()
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8081)))
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))
