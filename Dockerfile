@@ -5,7 +5,7 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TZ=Asia/Kolkata \
-    PORT=8081
+    PORT=8080
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
