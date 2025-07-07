@@ -1,17 +1,23 @@
 logsBucket: 'gs://caring-465016-cloud-build-logs'
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-app/my-app:latest', '.']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-app/my-app:latest']
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  args:
-    - run
-    - deploy
-    - my-app
-    - --image=us-central1-docker.pkg.dev/$PROJECT_ID/my-app/my-app:latest
-    - --region=us-central1
-    - --platform=managed
-    - --allow-unauthenticated
-    - --set-env-vars=PORT=8080
-  entrypoint: gcloud
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-app/my-app:latest', '.']
+    id: 'build-image'
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-app/my-app:latest']
+    id: 'push-image'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - run
+      - deploy
+      - my-app
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/my-app/my-app:latest
+      - --region=us-central1
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-env-vars=PORT=8080,REDIS_HOST=climbing-narwhal-53855.upstash.io,REDIS_PORT=6379,GCS_BUCKET_NAME=caring-465016-trading-bot,BOT_TOKEN=7662307654:AAG5-juB1faNaFZfC8zjf4LwlZMzs6lEmtE,CHAT_ID=655537138,REDIS_PASSWORD=AdJfAAIjcDEzNDdhYTU4OGY1ZDc0ZWU3YmQzY2U0MTVkNThiNzU0OXAxMA
+    entrypoint: gcloud
+    id: 'deploy-service'
+timeout: '1200s'
+options:
+  logging: GCS_ONLY
